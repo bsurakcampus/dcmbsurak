@@ -1725,31 +1725,176 @@
       ].join('');
     }
 
-    // ============ LIGHTBOX ============
+    // ============ LIGHTBOX (YouTube IFrame API + ambient ducking) ============
+    //
+    // Videos open MUTED so browsers allow autoplay. When the user clicks
+    // the unmute button on the YouTube player, we detect the change by
+    // polling player.isMuted() and fade the ambient music out smoothly.
+    // When they re-mute, end the video, or close the lightbox, the
+    // ambient music fades back in.
+    //
+    // The YouTube IFrame API requires loading https://www.youtube.com/iframe_api
+    // and waiting for window.onYouTubeIframeAPIReady. We load it lazily on the
+    // first openLightbox call.
+    let ytPlayer = null;
+    let ytApiReady = false;
+    let ytApiPending = null;
+    let ytMutePollInterval = null;
+    let ytLastMutedState = true;
+    let ambientFadeInterval = null;
+    let ambientPreFadeVolume = 1.0;
+
+    // Receive callback from the IFrame API once it's loaded
+    window.onYouTubeIframeAPIReady = function() {
+      ytApiReady = true;
+      if (ytApiPending) {
+        const fn = ytApiPending;
+        ytApiPending = null;
+        fn();
+      }
+    };
+
+    function loadYouTubeApi() {
+      if (ytApiReady || document.getElementById('yt-iframe-api-script')) return;
+      const tag = document.createElement('script');
+      tag.id = 'yt-iframe-api-script';
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+    }
+
     function openLightbox(videoId, caption) {
       const lb = document.getElementById('lightbox');
       const host = document.getElementById('lb-iframe-host');
       const cap  = document.getElementById('lb-caption');
       if (!lb || !host) return;
-      host.innerHTML = '<iframe src="https://www.youtube.com/embed/' + videoId +
-        '?autoplay=1&rel=0&modestbranding=1" ' +
-        'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+
+      // Tear down any previous player
+      stopMutePolling();
+      if (ytPlayer) {
+        try { ytPlayer.destroy(); } catch (err) {}
+        ytPlayer = null;
+      }
+      ytLastMutedState = true;
+
+      // Fresh div as the YT player target
+      host.innerHTML = '<div id="yt-player"></div>';
       if (cap) cap.textContent = caption || '';
       lb.classList.add('open');
       document.body.style.overflow = 'hidden';
+
+      const createPlayer = function() {
+        ytPlayer = new YT.Player('yt-player', {
+          videoId: videoId,
+          playerVars: {
+            autoplay: 1,
+            mute: 1,          // muted by default so autoplay works
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1
+          },
+          events: {
+            onReady: function() {
+              ytLastMutedState = true;
+              startMutePolling();
+            },
+            onStateChange: function(e) {
+              // YT.PlayerState.ENDED === 0
+              if (e.data === 0) {
+                fadeAmbientIn();
+              }
+            }
+          }
+        });
+      };
+
+      if (ytApiReady && window.YT && window.YT.Player) {
+        createPlayer();
+      } else {
+        ytApiPending = createPlayer;
+        loadYouTubeApi();
+      }
     }
+
     function closeLightbox(evt) {
       if (evt && evt.stopPropagation) evt.stopPropagation();
       const lb = document.getElementById('lightbox');
       const host = document.getElementById('lb-iframe-host');
       if (!lb) return;
       lb.classList.remove('open');
-      if (host) host.innerHTML = '';   // stop video
+      stopMutePolling();
+      if (ytPlayer) {
+        try { ytPlayer.destroy(); } catch (err) {}
+        ytPlayer = null;
+      }
+      if (host) host.innerHTML = '';
       document.body.style.overflow = '';
+      ytLastMutedState = true;
+      fadeAmbientIn();   // bring ambient back up if it was ducked
     }
+
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') closeLightbox();
     });
+
+    function startMutePolling() {
+      stopMutePolling();
+      ytMutePollInterval = setInterval(function() {
+        if (!ytPlayer || typeof ytPlayer.isMuted !== 'function') return;
+        let isMuted;
+        try { isMuted = ytPlayer.isMuted(); } catch (err) { return; }
+        if (isMuted === ytLastMutedState) return;
+        ytLastMutedState = isMuted;
+        if (isMuted) {
+          fadeAmbientIn();    // video re-muted → bring ambient back
+        } else {
+          fadeAmbientOut();   // video unmuted → duck ambient
+        }
+      }, 400);
+    }
+    function stopMutePolling() {
+      if (ytMutePollInterval) { clearInterval(ytMutePollInterval); ytMutePollInterval = null; }
+    }
+
+    // === Ambient volume fade (600ms) ===
+    function fadeAmbientOut() {
+      if (!audioEl) return;
+      if (audioEl.paused) return;     // not playing, nothing to duck
+      if (ambientFadeInterval) clearInterval(ambientFadeInterval);
+      ambientPreFadeVolume = (audioEl.volume > 0) ? audioEl.volume : 1.0;
+      const steps = 24;
+      const stepMs = 600 / steps;
+      const decrement = audioEl.volume / steps;
+      ambientFadeInterval = setInterval(function() {
+        const next = audioEl.volume - decrement;
+        if (next <= 0.01) {
+          audioEl.volume = 0;
+          clearInterval(ambientFadeInterval);
+          ambientFadeInterval = null;
+        } else {
+          audioEl.volume = next;
+        }
+      }, stepMs);
+    }
+    function fadeAmbientIn() {
+      if (!audioEl) return;
+      if (audioEl.paused) return;     // user has the music off; don't force it on
+      if (ambientFadeInterval) clearInterval(ambientFadeInterval);
+      const target = (ambientPreFadeVolume > 0) ? ambientPreFadeVolume : 1.0;
+      const steps = 24;
+      const stepMs = 600 / steps;
+      const increment = (target - audioEl.volume) / steps;
+      if (increment <= 0) { audioEl.volume = target; return; }
+      ambientFadeInterval = setInterval(function() {
+        const next = audioEl.volume + increment;
+        if (next >= target) {
+          audioEl.volume = target;
+          clearInterval(ambientFadeInterval);
+          ambientFadeInterval = null;
+        } else {
+          audioEl.volume = next;
+        }
+      }, stepMs);
+    }
 
     function escapeHtml(s) {
       return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
