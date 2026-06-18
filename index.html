@@ -275,6 +275,28 @@
       to   { transform: translateX(-50%); }
     }
 
+    /* small "↓ SCROLL" nudge sitting just above the marquee. Pulses
+       gently to invite the visitor down. Scrolls off naturally with
+       the hero — no JS hide needed. */
+    .hero .scroll-hint {
+      position: absolute;
+      left: 50%; bottom: 78px;
+      transform: translateX(-50%);
+      z-index: 7;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.24em;
+      color: rgba(15, 17, 22, 0.45);
+      pointer-events: none;
+      animation: scroll-nudge 1.8s ease-in-out infinite;
+    }
+    .hero .scroll-hint .arrow { font-size: 18px; line-height: 1; }
+    @keyframes scroll-nudge {
+      0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.45; }
+      50%      { transform: translateX(-50%) translateY(6px); opacity: 0.85; }
+    }
+
     /* ========== HERO ANIMATIONS — bulb flicker ========== */
     /* STUDS: 6s loop. Ignites with a struggle, holds with micro-flicker,
        dies in a sputter, dark for 5% of cycle, repeats. */
@@ -1537,6 +1559,8 @@
           '      <span class="word"><span class="inline-icon" style="color: var(--c-green)"><svg viewBox="0 0 64 64" fill="currentColor"><circle cx="32" cy="32" r="26"/><polygon points="26,20 26,44 46,32" fill="#E8EAEE"/></svg></span> story.</span>',
           '    </p>',
           '  </div>',
+          // small "↓ SCROLL" nudge above the marquee
+          '  <div class="scroll-hint"><span class="lbl">SCROLL</span><span class="arrow">&#8595;</span></div>',
           // black marquee at bottom — items pulled from _CONFIG.hero_marquee_items
           // (pipe-separated). Track is duplicated for seamless infinite scroll.
           '  <div class="marquee"><div class="marquee-track">' + marqueeTrackHtml() + '</div></div>',
@@ -2090,6 +2114,52 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
     updateScrollTopVisibility();
+
+    // =================================================================
+    // HERO PARALLAX — STUDS × headline
+    // =================================================================
+    // As the user scrolls down through the hero, the giant STUDS
+    // ghost word and the "Dept of Computing & Media" headline move
+    // at different rates so they visually separate:
+    //
+    //   STUDS    drifts up at 0.3× scroll  → lingers, reads as "deep"
+    //   Headline lifts off at 1.2× scroll → exits viewport first
+    //
+    // Eyebrow, orbs, floating icons, and marquee scroll naturally
+    // with the hero (no transform applied to them). Throttled via
+    // requestAnimationFrame so scroll stays at 60fps. Respects the
+    // user's prefers-reduced-motion preference.
+    //
+    // The DOM is re-queried inside update() because the hero only
+    // exists when home is rendered — on module pages the queries
+    // return null and the function does nothing. Works cleanly with
+    // SPA route changes.
+    // =================================================================
+    (function setupHeroParallax() {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduceMotion) return;
+
+      const STUDS_RATE    = 0.3;
+      const HEADLINE_RATE = 1.2;
+
+      let ticking = false;
+      function update() {
+        const ghost    = document.querySelector('.hero .ghost-word');
+        const headline = document.querySelector('.hero .headline-wrap');
+        if (ghost && headline) {
+          const y = window.scrollY;
+          ghost.style.transform    = 'translate(-50%, calc(-50% + ' + (-y * STUDS_RATE) + 'px))';
+          headline.style.transform = 'translateY(' + (-y * HEADLINE_RATE) + 'px)';
+        }
+        ticking = false;
+      }
+      window.addEventListener('scroll', function() {
+        if (!ticking) {
+          window.requestAnimationFrame(update);
+          ticking = true;
+        }
+      }, { passive: true });
+    })();
 
     load();
   </script>
