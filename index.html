@@ -202,6 +202,32 @@
     .hero .float-icon.f9  { top: 42%; left: 3%;  width: 54px; animation-delay: 3s;   --rot: 14deg; }
     .hero .float-icon.f10 { top: 48%; right: 3%; width: 60px; animation-delay: 2.6s; --rot: -10deg; }
 
+    /* ===== DRIFTING COLOUR ORBS =====
+       Four large soft-blurred colour blobs sitting BEHIND the STUDS
+       ghost word (z-index: 0 → behind ghost-word at z-index: 1). Each
+       orb has its own slow drift cycle so they never sync up. Adds an
+       ambient wash of moving brand colour to the cool-grey hero. */
+    .hero .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.45;
+      z-index: 0;
+      pointer-events: none;
+      animation: drift var(--dur, 60s) ease-in-out infinite;
+      will-change: transform;
+    }
+    @keyframes drift {
+      0%, 100% { transform: translate(0, 0); }
+      25%      { transform: translate(80px, -40px); }
+      50%      { transform: translate(-30px, 60px); }
+      75%      { transform: translate(50px, 30px); }
+    }
+    .hero .orb.o1 { width: 380px; height: 380px; top:  5%; left: 10%; background: var(--c-pink);   --dur: 70s; }
+    .hero .orb.o2 { width: 320px; height: 320px; top: 50%; left: 70%; background: var(--c-violet); --dur: 60s; animation-delay: -10s; }
+    .hero .orb.o3 { width: 280px; height: 280px; top: 60%; left: 20%; background: var(--c-cyan);   --dur: 80s; animation-delay: -20s; }
+    .hero .orb.o4 { width: 240px; height: 240px; top: 10%; left: 60%; background: var(--c-yellow); --dur: 65s; animation-delay: -30s; }
+
     /* giant STUDS sat behind everything, breathing on its own 6s cycle */
     .hero .ghost-word {
       position: absolute;
@@ -301,6 +327,9 @@
       .hero .float-icon.f5, .hero .float-icon.f7 { display: flex; }
       .hero h1.headline { font-size: clamp(40px, 11vw, 84px); }
       .hero .eyebrow { top: 70px; font-size: 11px; letter-spacing: 0.22em; }
+      /* drop GPU load on phones — only 2 orbs at reduced blur */
+      .hero .orb { display: none; }
+      .hero .orb.o1, .hero .orb.o2 { display: block; opacity: 0.3; filter: blur(60px); }
     }
 
 
@@ -748,8 +777,15 @@
       color: white;
       letter-spacing: 0.08em;
       z-index: 2;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .masonry-card .v-thumb .pos-tag .eye {
+      font-size: 9px;
+      opacity: 0.85;
+      margin-left: 2px;
     }
     .masonry-card.size-hero .v-thumb .pos-tag { font-size: 13px; padding: 6px 14px; }
+    .masonry-card.size-hero .v-thumb .pos-tag .eye { font-size: 11px; }
 
     /* ========== LIGHTBOX ========== */
     .lightbox {
@@ -1340,6 +1376,36 @@
       return APPS_SCRIPT_URL && APPS_SCRIPT_URL.indexOf("PASTE_") !== 0;
     }
 
+    // Fire-and-forget POST that increments the view count for a video.
+    // Sent as application/x-www-form-urlencoded so the browser treats
+    // it as a "simple" CORS request — no preflight needed when calling
+    // the Apps Script from the GitHub Pages origin.
+    function incrementView(videoId) {
+      if (!isUrlConfigured() || !videoId) return;
+      try {
+        fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: new URLSearchParams({ video_id: videoId })
+        }).catch(function() {});  // swallow errors silently
+      } catch (err) {
+        // older browser fallback — ignore
+      }
+    }
+
+    // Format a raw view count for display in the ribbon.
+    //   0..999       → "0", "1", ..., "999"
+    //   1,000..9,999 → "1.2K"
+    //   10K..999K    → "12K", "147K", "999K"
+    //   1M+          → "1.2M" / "12M"
+    function formatViews(n) {
+      n = Math.max(0, Math.floor(Number(n) || 0));
+      if (n < 1000) return String(n);
+      if (n < 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+      if (n < 1000000) return Math.floor(n / 1000) + 'K';
+      if (n < 10000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+      return Math.floor(n / 1000000) + 'M';
+    }
+
     // Fetch site data from the deployed Apps Script. The Apps Script
     // serves JSON from its doGet() handler. forceRefresh appends a
     // cachebuster query param so the browser doesn't serve a stale
@@ -1440,6 +1506,11 @@
       const html = []
         .concat([
           '<section class="hero">',
+          // drifting colour orbs (z-index: 0, behind STUDS)
+          '  <div class="orb o1"></div>',
+          '  <div class="orb o2"></div>',
+          '  <div class="orb o3"></div>',
+          '  <div class="orb o4"></div>',
           '  <div class="ghost-word">STUDS</div>',
           // ten floating tech icons
           '  <div class="float-icon f1" style="color: var(--c-pink)"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"><path d="M8 18h10l4-6h20l4 6h10v32H8z"/><circle cx="32" cy="32" r="9" fill="currentColor" stroke="none"/></svg></div>',
@@ -1704,7 +1775,7 @@
         return [
           '<div class="masonry-card ' + size + '" style="--c:' + color + ';--tile:' + tile + '" id="' + cardId + '">',
           '  <div class="v-thumb" onclick="openLightbox(\'' + escapeJs(v.video_id) + '\',\'' + escapeJs(caption) + '\')">',
-          '    <span class="pos-tag">№ ' + (v.position < 10 ? '0' : '') + v.position + '</span>',
+          '    <span class="pos-tag">№ ' + (v.position < 10 ? '0' : '') + v.position + ' &middot; <span class="eye">&#9673;</span> ' + formatViews(v.views) + '</span>',
           '    <img src="' + escapeAttr(v.thumbnail) + '" alt="" loading="lazy" onerror="this.src=\'https://img.youtube.com/vi/' + escapeJs(v.video_id) + '/hqdefault.jpg\'">',
           '    <div class="v-play"></div>',
           '  </div>',
@@ -1767,6 +1838,12 @@
       const host = document.getElementById('lb-iframe-host');
       const cap  = document.getElementById('lb-caption');
       if (!lb || !host) return;
+
+      // Fire-and-forget — increment view count in the backend. We
+      // deliberately don't await this, the lightbox should open
+      // instantly regardless of whether the POST succeeds. The new
+      // count will appear on the next page-load after the cache expires.
+      incrementView(videoId);
 
       // Tear down any previous player
       stopMutePolling();
