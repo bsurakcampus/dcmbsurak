@@ -355,6 +355,90 @@
     }
 
 
+    /* ========== DRAMATIC RISE + SCALE + FADE ON SCROLL ==========
+       Cards lift up 30px, scale from 0.92 to 1.0, and fade from
+       opacity 0 to 1 simultaneously. Duration 1.0s with a soft
+       ease-out curve. 200ms stagger between cards.
+       CSS animation (not transition) so element-level hover
+       transitions on cards stay independent. Sibling-trigger in JS
+       applies .in-view to all siblings at the same moment so the
+       cascade is always in DOM order. */
+    .rise {
+      opacity: 0;
+      transform: translate3d(0, 30px, 0) scale(0.92);
+      will-change: transform, opacity;
+    }
+    .rise.in-view {
+      animation: dramaticRise 1.0s cubic-bezier(0.16, 0.84, 0.32, 1) forwards;
+      will-change: auto;
+    }
+    @keyframes dramaticRise {
+      to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+    }
+    /* per-group stagger — 200ms between each card. Row 2 of grids
+       restarts the cascade from 0 to keep totals under 1.5s. */
+    .module-nav-grid > .rise:nth-child(1) { animation-delay: 0.00s; }
+    .module-nav-grid > .rise:nth-child(2) { animation-delay: 0.20s; }
+    .module-nav-grid > .rise:nth-child(3) { animation-delay: 0.40s; }
+    .module-nav-grid > .rise:nth-child(4) { animation-delay: 0.60s; }
+    .module-nav-grid > .rise:nth-child(5) { animation-delay: 0.00s; }
+    .module-nav-grid > .rise:nth-child(6) { animation-delay: 0.20s; }
+    .module-nav-grid > .rise:nth-child(7) { animation-delay: 0.40s; }
+    .module-nav-grid > .rise:nth-child(8) { animation-delay: 0.60s; }
+    .showcase-grid > .rise:nth-child(1) { animation-delay: 0.00s; }
+    .showcase-grid > .rise:nth-child(2) { animation-delay: 0.20s; }
+    .showcase-grid > .rise:nth-child(3) { animation-delay: 0.40s; }
+    .showcase-grid > .rise:nth-child(4) { animation-delay: 0.60s; }
+    .masonry > .rise:nth-child(1) { animation-delay: 0.00s; }
+    .masonry > .rise:nth-child(2) { animation-delay: 0.20s; }
+    .masonry > .rise:nth-child(3) { animation-delay: 0.40s; }
+    .masonry > .rise:nth-child(4) { animation-delay: 0.00s; }
+    .masonry > .rise:nth-child(5) { animation-delay: 0.20s; }
+    .masonry > .rise:nth-child(6) { animation-delay: 0.40s; }
+    .vision .rise + .rise { animation-delay: 0.20s; }
+    .vision .rise + .rise + .rise { animation-delay: 0.40s; }
+    .vision .rise + .rise + .rise + .rise { animation-delay: 0.60s; }
+    @media (prefers-reduced-motion: reduce) {
+      .rise { opacity: 1; transform: none; animation: none; }
+    }
+
+    /* ========== LINK BUTTON (globe icon, top-right of thumbnails)
+       Renders ONLY when the row in the sheet has a value in the
+       Link cell. Click opens the external URL in a new tab with
+       stopPropagation so the lightbox doesn't also open. */
+    .link-btn {
+      position: absolute;
+      top: 14px; right: 14px;
+      width: 30px; height: 30px;
+      background: rgba(255,255,255,0.92);
+      color: var(--c, var(--c-pink));
+      border-radius: 2px;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 3;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .link-btn:hover {
+      background: var(--c, var(--c-pink));
+      color: #FFFFFF;
+    }
+    .link-btn svg { width: 14px; height: 14px; }
+    /* smaller link button on mini thumbs and brick small cards */
+    .showcase .mini .link-btn,
+    .masonry-card.size-small .link-btn,
+    .masonry-card.size-medium .link-btn {
+      top: 6px; right: 6px;
+      width: 22px; height: 22px;
+    }
+    .showcase .mini .link-btn svg,
+    .masonry-card.size-small .link-btn svg,
+    .masonry-card.size-medium .link-btn svg { width: 11px; height: 11px; }
+
+
     /* ========== VISION ========== */
     .vision {
       padding: 100px 60px; border-bottom: 1px solid var(--line);
@@ -398,8 +482,11 @@
     /* ========== SHOWCASE — kept as uniform grid ========== */
     .showcase-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
-      gap: 32px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+    }
+    @media (max-width: 1400px) {
+      .showcase-grid { grid-template-columns: repeat(2, 1fr); }
     }
     .showcase {
       background: var(--bg-card);
@@ -461,13 +548,15 @@
     .showcase .featured:hover .play-big::after { border-left-color: white; }
     .showcase .featured .featured-tag {
       position: absolute; top: 14px; left: 14px;
-      font-family: var(--font-mono); font-size: 10px; font-weight: 600;
-      letter-spacing: 0.15em; text-transform: uppercase;
+      font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
       padding: 5px 10px;
       background: var(--c, var(--c-pink));
       color: white;
       z-index: 2;
+      display: inline-flex; align-items: center; gap: 4px;
     }
+    .showcase .featured .featured-tag .eye { font-size: 10px; opacity: 0.85; }
     /* Featured ribbon — solid module-colour band at the bottom of the
        big thumbnail with the student name in white. Different colour per
        showcase so the row reads colourful. */
@@ -505,7 +594,7 @@
     .showcase .filmstrip {
       padding: 18px 22px 22px;
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 12px;
     }
     .showcase .mini { cursor: pointer; display: flex; flex-direction: column; }
@@ -540,16 +629,27 @@
       border-bottom: 5px solid transparent;
       margin-left: 2px;
     }
+    .showcase .mini .mini-thumb .mini-pos-tag {
+      position: absolute; top: 6px; left: 6px;
+      background: var(--c, var(--c-pink));
+      color: #FFFFFF;
+      font-family: var(--font-mono);
+      font-size: 9px; font-weight: 700;
+      padding: 3px 6px;
+      letter-spacing: 0.06em;
+      z-index: 2;
+      display: inline-flex; align-items: center; gap: 3px;
+    }
+    .showcase .mini .mini-thumb .mini-pos-tag .eye { font-size: 8px; opacity: 0.85; }
     .showcase .mini .mini-meta {
       padding-top: 8px;
       font-family: var(--font-mono); font-size: 10px;
       color: var(--ink-soft); letter-spacing: 0.04em;
       line-height: 1.35;
     }
-    .showcase .mini .mini-meta .pos { color: var(--c, var(--c-pink)); font-weight: 600; }
     .showcase .mini .mini-meta .student-mini {
       font-family: var(--font-display); font-weight: 600;
-      font-size: 12px; color: var(--ink); margin-top: 2px;
+      font-size: 12px; color: var(--ink);
       letter-spacing: 0;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
       overflow: hidden;
@@ -586,7 +686,8 @@
       border-left: 4px solid var(--c, var(--c-pink));
       cursor: pointer;
       transition: background 0.2s, transform 0.2s;
-      display: flex; flex-direction: column; gap: 6px;
+      display: flex; flex-direction: column; gap: 10px;
+      min-height: 100px;
     }
     .module-nav:hover {
       background: white;
@@ -601,11 +702,7 @@
       font-family: var(--font-display); font-weight: 700;
       font-size: 18px; color: var(--c, var(--c-pink));
       letter-spacing: -0.01em;
-    }
-    .module-nav .tutor {
-      font-family: var(--font-mono); font-size: 10px;
-      color: var(--ink-soft); letter-spacing: 0.06em;
-      text-transform: uppercase;
+      margin-top: auto;
     }
 
     /* ========== MODULE PAGE ========== */
@@ -882,8 +979,8 @@
 
     @media (max-width: 900px) {
       .topbar { padding: 12px 10px 12px 16px; gap: 12px; }
-      .music-toggle { top: 10px; right: 10px; padding: 4px 8px; font-size: 10px; }
-      .music-toggle .label { display: none; }
+      .music-toggle { top: 16px; right: 18px; width: 24px; height: 24px; }
+      .music-toggle .icon { width: 10px; height: 10px; }
       .topbar nav { gap: 10px; }
       .topbar nav a { font-size: 11px; }
       main { padding: 0 0 80px; }
@@ -896,27 +993,23 @@
       .semester-section { padding: 50px 22px; }
     }
 
-    /* ========== AMBIENT MUSIC TOGGLE (pinned top-right corner) ========== */
+    /* ========== AMBIENT MUSIC TOGGLE (icon-only, pinned top-right) ========== */
     .music-toggle {
       position: fixed;
-      top: 12px;
-      right: 14px;
+      top: 20px;
+      right: 22px;
       z-index: 200;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      justify-content: center;
       background: rgba(255,255,255,0.92);
       border: 1px solid var(--c-pink);
       color: var(--c-pink);
-      font-family: var(--font-mono);
-      font-size: 11px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      font-weight: 600;
-      padding: 5px 10px;
+      width: 26px;
+      height: 26px;
+      padding: 0;
       cursor: pointer;
       border-radius: 2px;
-      white-space: nowrap;
       transition: background 0.15s, color 0.15s, border-color 0.15s;
       animation: musicIdlePulse 2.2s ease-in-out infinite;
     }
@@ -929,17 +1022,11 @@
       color: #fff;
     }
     .music-toggle .icon {
-      width: 14px; height: 14px;
+      width: 11px; height: 11px;
       flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
     }
     .music-toggle .icon svg { width: 100%; height: 100%; }
-    .music-toggle .label {
-      white-space: nowrap;
-      max-width: 220px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
     /* PLAYING — solid pink, animated EQ bars */
     .music-toggle.playing {
       background: var(--c-pink);
@@ -1016,7 +1103,6 @@
           <polygon points="6,4 20,12 6,20" fill="currentColor" stroke="none"/>
         </svg>
       </span>
-      <span class="label" id="music-label">MUSIC</span>
     </button>
   </header>
 
@@ -1568,17 +1654,17 @@
         ])
         .concat([
           '<section class="vision">',
-          '  <h2>Why <span class="accent">Dept of Computing &amp; Media</span> at Bath Spa University &middot; RAK Campus?</h2>',
+          '  <h2 class="rise">Why <span class="accent">Dept of Computing &amp; Media</span> at Bath Spa University &middot; RAK Campus?</h2>',
           '  <div class="body">',
-          '    <p>' + escapeHtml(cfg.vision_paragraph_1 || '') + '</p>',
-          '    <p>' + escapeHtml(cfg.vision_paragraph_2 || '') + '</p>',
-          '    <p>' + escapeHtml(cfg.vision_paragraph_3 || '') + '</p>',
+          '    <p class="rise">' + escapeHtml(cfg.vision_paragraph_1 || '') + '</p>',
+          '    <p class="rise">' + escapeHtml(cfg.vision_paragraph_2 || '') + '</p>',
+          '    <p class="rise">' + escapeHtml(cfg.vision_paragraph_3 || '') + '</p>',
           '  </div>',
           '</section>'
         ])
         .concat(modulesInCurrent.length ? [
           '<section class="section">',
-          '  <div class="section-header">',
+          '  <div class="section-header rise">',
           '    <h2>Best of <span class="accent-pink">Last Semester</span></h2>',
           '    <div class="meta">' + escapeHtml(currentSem) + ' · ' + modulesInCurrent.length + ' modules</div>',
           '  </div>',
@@ -1591,6 +1677,7 @@
         .join('');
 
       document.getElementById('app').innerHTML = html;
+      observeRise();
       // (the old hero used a chromatic-field canvas; the new flicker hero is
       //  pure CSS so nothing to initialise here)
     }
@@ -1621,20 +1708,25 @@
       const block = module.latest_block;
       const videos = block.videos;
       const featured = videos[0];
-      // Always show exactly 4 mini thumbnails to fill the width of the big
-      // featured thumbnail above. If fewer real videos exist, pad with null
-      // placeholders. No horizontal scroll.
-      const TOTAL_MINIS = 4;
+      // Show exactly 3 mini thumbnails (was 4). Empty slots padded with
+      // null so the row stays aligned with the 3-column filmstrip.
+      const TOTAL_MINIS = 3;
       const actualRest = videos.slice(1, 1 + TOTAL_MINIS);
       const rest = actualRest.slice();
       while (rest.length < TOTAL_MINIS) rest.push(null);
       const cardId = 'sc-' + module.tab_name.replace(/[^A-Za-z0-9]/g, '_');
       const featuredCaption = (featured.student || 'Untitled') + ' · ' + module.display_name + ' · ' + (block.semester || '');
+      // SVG paths for the globe link icon, inlined here to avoid an
+      // extra HTTP request. Only rendered when the row's link cell
+      // has a value (link field comes back as '' when empty).
+      const linkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg>';
+      const featuredLink = featured.link ? '<a class="link-btn" href="' + escapeAttr(featured.link) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Visit project">' + linkSvg + '</a>' : '';
 
       return [
-        '<div class="showcase" style="--c:' + color + '">',
+        '<div class="showcase rise" style="--c:' + color + '">',
         '  <div class="featured" id="' + cardId + '-f" onclick="openLightbox(\'' + escapeJs(featured.video_id) + '\',\'' + escapeJs(featuredCaption) + '\')">',
-        '    <span class="featured-tag">№ 01 · TOP PICK</span>',
+        '    <span class="featured-tag">№ 01 &middot; <span class="eye">&#9673;</span> ' + formatViews(featured.views) + '</span>',
+        '    ' + featuredLink,
         '    <img src="' + escapeAttr(featured.thumbnail) + '" alt="" loading="lazy" onerror="this.src=\'https://img.youtube.com/vi/' + escapeJs(featured.video_id) + '/hqdefault.jpg\'">',
         '    <div class="play-big"></div>',
         '    <div class="student-tag">' + escapeHtml(featured.student || 'Untitled') + '</div>',
@@ -1652,14 +1744,16 @@
                 return '<div class="mini empty"><div class="mini-thumb"></div></div>';
               }
               const miniCaption = (v.student || 'Untitled') + ' · ' + module.display_name + ' · ' + (block.semester || '');
+              const miniLink = v.link ? '<a class="link-btn" href="' + escapeAttr(v.link) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Visit project">' + linkSvg + '</a>' : '';
               return [
                 '<div class="mini" onclick="openLightbox(\'' + escapeJs(v.video_id) + '\',\'' + escapeJs(miniCaption) + '\')">',
                 '  <div class="mini-thumb">',
+                '    <span class="mini-pos-tag">№ ' + (v.position < 10 ? '0' : '') + v.position + ' &middot; <span class="eye">&#9673;</span> ' + formatViews(v.views) + '</span>',
+                '    ' + miniLink,
                 '    <img src="' + escapeAttr(v.thumbnail) + '" alt="" loading="lazy" onerror="this.src=\'https://img.youtube.com/vi/' + escapeJs(v.video_id) + '/hqdefault.jpg\'">',
                 '    <div class="mini-play"></div>',
                 '  </div>',
                 '  <div class="mini-meta">',
-                '    <span class="pos">№ ' + (v.position < 10 ? '0' : '') + v.position + '</span>',
                 '    <div class="student-mini">' + escapeHtml(v.student || 'Untitled') + '</div>',
                 '    <span class="student-line"></span>',
                 '  </div>',
@@ -1678,12 +1772,10 @@
     function moduleNavHtml(module, idx) {
       const color = colorFor(module.tab_name);
       const num = (idx + 1).toString().padStart(2, '0');
-      const latestTutor = (module.latest_block && module.latest_block.tutor) || module.tutor || '—';
       return [
-        '<div class="module-nav" style="--c:' + color + '" onclick="navigateTo(\'module\',\'' + escapeJs(module.tab_name) + '\')">',
+        '<div class="module-nav rise" style="--c:' + color + '" onclick="navigateTo(\'module\',\'' + escapeJs(module.tab_name) + '\')">',
         '  <div class="num">№ ' + num + '</div>',
         '  <div class="name">' + escapeHtml(module.display_name) + '</div>',
-        '  <div class="tutor">' + escapeHtml(latestTutor) + '</div>',
         '</div>'
       ].join('');
     }
@@ -1710,6 +1802,7 @@
       ].join('');
 
       document.getElementById('app').innerHTML = html;
+      observeRise();
     }
 
     // Render the "All Modules" grid as a standalone section. Optional
@@ -1728,7 +1821,7 @@
         : list.length + ' modules · pick one to explore';
       return [
         '<section class="section">',
-        '  <div class="section-header">',
+        '  <div class="section-header rise">',
         '    <h2>' + headerLabel + '</h2>',
         '    <div class="meta">' + metaLabel + '</div>',
         '  </div>',
@@ -1796,10 +1889,15 @@
         // build a caption for the lightbox: "Student · Module · Semester"
         const captionParts = [studentName, module.display_name, block.semester || ''].filter(Boolean);
         const caption = captionParts.join(' · ');
+        // Globe link icon — rendered only when the row has a link in the sheet.
+        // stopPropagation prevents the lightbox from opening alongside the link.
+        const linkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg>';
+        const linkBtn = v.link ? '<a class="link-btn" href="' + escapeAttr(v.link) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Visit project">' + linkSvg + '</a>' : '';
         return [
-          '<div class="masonry-card ' + size + '" style="--c:' + color + ';--tile:' + tile + '" id="' + cardId + '">',
+          '<div class="masonry-card rise ' + size + '" style="--c:' + color + ';--tile:' + tile + '" id="' + cardId + '">',
           '  <div class="v-thumb" onclick="openLightbox(\'' + escapeJs(v.video_id) + '\',\'' + escapeJs(caption) + '\')">',
           '    <span class="pos-tag">№ ' + (v.position < 10 ? '0' : '') + v.position + ' &middot; <span class="eye">&#9673;</span> ' + formatViews(v.views) + '</span>',
+          '    ' + linkBtn,
           '    <img src="' + escapeAttr(v.thumbnail) + '" alt="" loading="lazy" onerror="this.src=\'https://img.youtube.com/vi/' + escapeJs(v.video_id) + '/hqdefault.jpg\'">',
           '    <div class="v-play"></div>',
           '  </div>',
@@ -1811,7 +1909,7 @@
       const blockTutor = block.tutor || module.tutor || '';
       return [
         '<section class="semester-section' + muted + '" style="--c:' + color + '">',
-        '  <div class="sem-head">',
+        '  <div class="sem-head rise">',
         '    <h3><span class="accent">' + escapeHtml(block.semester || '') + '</span> &nbsp; — &nbsp; with ' + escapeHtml(blockTutor) + '</h3>',
         '    <span class="sem-meta">' + block.videos.length + ' project' + (block.videos.length === 1 ? '' : 's') + '</span>',
         '  </div>',
@@ -2025,7 +2123,6 @@
     const audioEl = document.getElementById('ambient-audio');
     const musicBtn = document.getElementById('music-toggle');
     const musicIcon = document.getElementById('music-icon');
-    const musicLabel = document.getElementById('music-label');
     let musicPlaying = false;
     let musicLoading = false;
 
@@ -2041,21 +2138,17 @@
       if (!audioEl.src) audioEl.src = cfg.url;
     }
     function updateMusicUI() {
-      const cfg = musicCfg();
       if (musicLoading) {
         musicIcon.innerHTML = ICON_LOAD;
-        musicLabel.textContent = 'CONNECTING…';
         musicBtn.classList.remove('playing');
         musicBtn.classList.add('loading');
       } else if (musicPlaying) {
         musicIcon.innerHTML = ICON_STOP;
-        musicLabel.textContent = cfg.label;
         musicBtn.classList.add('playing');
         musicBtn.classList.remove('loading');
         musicBtn.setAttribute('aria-label', 'Stop ambient music');
       } else {
         musicIcon.innerHTML = ICON_PLAY;
-        musicLabel.textContent = 'MUSIC';
         musicBtn.classList.remove('playing', 'loading');
         musicBtn.setAttribute('aria-label', 'Play ambient music');
       }
@@ -2160,6 +2253,63 @@
         }
       }, { passive: true });
     })();
+
+    // =================================================================
+    // RISE-ON-SCROLL OBSERVER
+    // =================================================================
+    // A single shared IntersectionObserver watches every .rise element
+    // currently in the DOM. When one crosses 12% into the viewport (or
+    // when 60px before its bottom edge enters), it gets .in-view which
+    // unlocks the CSS transition. Each element is unobserved after its
+    // first trigger so scrolling back up doesn't re-animate — the rise
+    // is a one-time arrival, not a yo-yo.
+    //
+    // observeRise() is called after every renderHome / renderModule so
+    // newly-rendered elements get picked up when routes change. Already
+    // animated elements (.in-view) are skipped automatically.
+    // =================================================================
+    let riseObserver = null;
+    function getRiseObserver() {
+      if (riseObserver) return riseObserver;
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduceMotion) return null;
+      riseObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (!entry.isIntersecting) return;
+          // When ANY .rise enters the viewport, trigger every sibling
+          // .rise inside the same parent at the same moment. The CSS
+          // animation-delay (set per nth-child) then cascades them in
+          // strict DOM order: 1 → 2 → 3 → 4... If each card was
+          // observed individually, row-2 cards would trigger at their
+          // own viewport-entry times and the cascade would look random.
+          const parent = entry.target.parentElement;
+          if (parent) {
+            parent.querySelectorAll(':scope > .rise:not(.in-view)').forEach(function(sib) {
+              sib.classList.add('in-view');
+              riseObserver.unobserve(sib);
+            });
+          } else {
+            entry.target.classList.add('in-view');
+            riseObserver.unobserve(entry.target);
+          }
+        });
+      }, {
+        threshold: 0.25,
+        rootMargin: '0px'
+      });
+      return riseObserver;
+    }
+    function observeRise() {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const nodes = document.querySelectorAll('.rise:not(.in-view)');
+      if (reduceMotion) {
+        nodes.forEach(function(el) { el.classList.add('in-view'); });
+        return;
+      }
+      const obs = getRiseObserver();
+      if (!obs) return;
+      nodes.forEach(function(el) { obs.observe(el); });
+    }
 
     load();
   </script>
