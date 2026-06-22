@@ -2,7 +2,23 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>DCM·BSURAK — 21 June Edition</title>
+<title>DCM·BSURAK — Department of Computing & Media</title>
+<meta name="description" content="Bath Spa University · RAK Campus — Department of Computing & Media. Student showcase: code, UX design, photography, physical computing, game design.">
+<!-- Open Graph (WhatsApp / Facebook / LinkedIn link previews) -->
+<meta property="og:title" content="DCM·BSURAK — Department of Computing & Media">
+<meta property="og:description" content="Bath Spa University · RAK Campus. Where students design, code, photograph & tell stories — every semester, on a public stage.">
+<meta property="og:type" content="website">
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="DCM·BSURAK — Department of Computing & Media">
+<meta name="twitter:description" content="Bath Spa University · RAK Campus. Student showcase of code, design, photography & storytelling.">
+<!-- Favicon and social-preview image. The JS below updates these dynamically from _CONFIG.site_image_url,
+     but social-media crawlers (WhatsApp, Facebook, LinkedIn) do NOT execute JavaScript — they read this
+     static HTML only. For social previews to use a custom image, paste the same URL into the og:image
+     content attribute below as well. See README for the one-time setup. -->
+<link rel="icon" type="image/png" id="favicon-link" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23FF2E9A'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='14' fill='white' text-anchor='middle' font-weight='bold'%3ED%3C/text%3E%3C/svg%3E">
+<meta property="og:image" content="" id="og-image-meta">
+<meta name="twitter:image" content="" id="twitter-image-meta">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1086,6 +1102,19 @@
   function updateBrand(cfg) {
     const el = document.querySelector('.brand');
     if (el && cfg) el.innerHTML = brandHtml(cfg);
+    // If a site_image_url is set in the sheet, update the favicon + social
+    // preview meta tags at runtime. Note: WhatsApp/Facebook/LinkedIn crawlers
+    // do NOT execute JS, so these updates only affect the live page (favicon
+    // in browser tabs). For social previews to use the custom image, the
+    // og:image content attribute must also be set statically in the HTML.
+    if (cfg && cfg.site_image_url) {
+      const fav = document.getElementById('favicon-link');
+      if (fav) fav.href = cfg.site_image_url;
+      const ogImg = document.getElementById('og-image-meta');
+      if (ogImg) ogImg.setAttribute('content', cfg.site_image_url);
+      const twImg = document.getElementById('twitter-image-meta');
+      if (twImg) twImg.setAttribute('content', cfg.site_image_url);
+    }
   }
 
   function brandHtml(cfg) {
