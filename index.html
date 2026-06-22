@@ -839,11 +839,12 @@
     -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  @media (max-width: 1400px) {
+  /* Responsive: 4 cols on desktop, 3 cols on laptop/tablet landscape, 2 cols on tablet portrait/phone */
+  @media (max-width: 1300px) {
     .masonry { column-count: 3; }
   }
-  @media (max-width: 1100px) {
-    .masonry { column-count: 3; column-gap: 14px; }
+  @media (max-width: 900px) {
+    .masonry { column-count: 2; column-gap: 14px; }
   }
   @media (max-width: 700px) {
     .masonry { column-count: 2; column-gap: 12px; }
@@ -1374,11 +1375,50 @@
       return;
     }
     if (SITE && SITE.config) updateBrand(SITE.config);
-    // If full data is present (semesters[]), use that; else use featured+minis
+    // Use full semesters[] if present; else fall back to single-semester from
+    // featured+minis (home data, e.g. when a module has no full data yet).
     const useSems = Array.isArray(mod.semesters) && mod.semesters.length > 0;
-    const videos = useSems
-      ? mod.semesters[0].videos
-      : [mod.featured].concat(mod.minis || []).filter(Boolean);
+    const semesters = useSems
+      ? mod.semesters
+      : [{ name: SITE.config.current_semester || '', tutor: mod.tutor || '',
+           videos: [mod.featured].concat(mod.minis || []).filter(Boolean) }];
+
+    // Total project count across all semesters (for the hero meta line)
+    let totalProjects = 0;
+    semesters.forEach(function(s) { totalProjects += (s.videos || []).length; });
+
+    // Build a section per semester
+    function semesterSectionHtml(sem, idx) {
+      const semTutor = sem.tutor || mod.tutor || '';
+      const semVideos = sem.videos || [];
+      const heading = 'Best of <span class="accent">' + escapeHtml(sem.name) + '</span> with ' + escapeHtml(semTutor);
+      return [
+        '  <section class="semester-section">',
+        '    <div class="sem-head">',
+        '      <h2>' + heading + '</h2>',
+        '      <div class="sem-meta">' + semVideos.length + ' projects</div>',
+        '    </div>',
+        '    <div class="masonry">',
+        (semVideos.length === 0
+          ? '<div style="padding:60px 0;color:var(--ink-mute);font-family:var(--font-mono);font-size:11px;letter-spacing:0.22em;text-transform:uppercase">No projects in this semester.</div>'
+          : semVideos.map(function(v, i) {
+            var vLink = v.link
+              ? '<a class="link-btn" href="' + escapeAttr(v.link) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Visit project">' + linkSvg + '</a>'
+              : '';
+            return '<div class="masonry-card" style="--c:' + mod.color + '" onclick="openLightbox(\'' + escapeJs(v.youtube || '') + '\',\'' + escapeJs(v.student) + ' · ' + escapeJs(mod.display_name) + '\')">'
+              + '<div class="v-thumb">'
+              + vLink
+              + '<img src="' + (v.thumb || 'https://picsum.photos/seed/' + i + '/800/450') + '" alt="" loading="lazy">'
+              + '<div class="v-play"></div>'
+              + '</div>'
+              + '<div class="v-name">' + escapeHtml(v.student) + '</div>'
+              + '</div>';
+          }).join('')),
+        '    </div>',
+        '  </section>'
+      ].join('');
+    }
+
     document.getElementById('app').innerHTML = [
       '<div class="module-page">',
       '  <div class="module-nav-row">',
@@ -1389,31 +1429,8 @@
       '    <div class="meta-line">' + cfgEscape('Module · ' + (mod.program || '')) + '</div>',
       '    <h1>' + escapeHtml(mod.display_name) + '</h1>',
       (mod.tagline ? '    <p class="module-tagline">' + escapeHtml(mod.tagline) + '</p>' : ''),
-      '    <div class="module-meta-row"><strong>' + escapeHtml(mod.tutor) + '</strong> · ' + SITE.config.current_semester + ' · ' + videos.length + ' projects</div>',
       '  </div>',
-      '  <section class="semester-section">',
-      '    <div class="sem-head">',
-      '      <h2>Best of <span class="accent">' + SITE.config.current_semester + '</span> with ' + escapeHtml(mod.tutor) + '</h2>',
-      '      <div class="sem-meta">' + videos.length + ' projects</div>',
-      '    </div>',
-      '    <div class="masonry">',
-      (videos.length === 0
-        ? '<div style="padding:60px 0;color:var(--ink-mute);font-family:var(--font-mono);font-size:11px;letter-spacing:0.22em;text-transform:uppercase">No projects in this module tab yet.</div>'
-        : videos.map((v, i) => {
-        var vLink = v.link
-          ? '<a class="link-btn" href="' + escapeAttr(v.link) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Visit project">' + linkSvg + '</a>'
-          : '';
-        return '<div class="masonry-card" style="--c:' + mod.color + '" onclick="openLightbox(\'' + escapeJs(v.youtube || '') + '\',\'' + escapeJs(v.student) + ' · ' + escapeJs(mod.display_name) + '\')">'
-          + '<div class="v-thumb">'
-          + vLink
-          + '<img src="' + (v.thumb || 'https://picsum.photos/seed/' + i + '/800/450') + '" alt="" loading="lazy">'
-          + '<div class="v-play"></div>'
-          + '</div>'
-          + '<div class="v-name">' + escapeHtml(v.student) + '</div>'
-          + '</div>';
-      }).join('')),
-      '    </div>',
-      '  </section>',
+      semesters.map(semesterSectionHtml).join(''),
       '  <footer>',
       '    ' + escapeHtml(SITE.config.footer_text) + ' <span class="sep">|</span> <span class="contact">' + escapeHtml(SITE.config.footer_contact) + '</span>',
       '  </footer>',
