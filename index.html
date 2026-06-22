@@ -174,12 +174,12 @@
     margin-bottom: 22px;
   }
   .why-section h2 {
-    font-family: var(--font-display); font-weight: 900;
-    font-size: clamp(40px, 5.2vw, 76px);
-    letter-spacing: -0.025em;
-    line-height: 1.05;
-    margin: 0 0 50px;
-    max-width: 1500px;
+    font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(26px, 3.6vw, 54px);
+    letter-spacing: -0.018em;
+    line-height: 1.08;
+    margin: 0 0 40px;
+    max-width: 1200px;
     color: var(--ink);
   }
   .why-section h2 .accent { color: var(--accent); }
@@ -955,8 +955,8 @@
   @media (max-width: 700px) {
     header.topbar { padding: 12px 22px; }
     .why-section .body { grid-template-columns: 1fr; gap: 24px; }
-    /* 75% of the desktop minimum (40px → 30px) so the heading sits comfortably on phone */
-    .why-section h2 { font-size: 30px; margin: 0 0 36px; }
+    /* Reduced so the Why heading reads as clearly secondary to the hero title */
+    .why-section h2 { font-size: 24px; margin: 0 0 30px; }
     .hero { padding: 60px 22px 50px; }
     .hero .marquee { margin: 0 -22px; }
     .why-section { padding: 60px 22px; }
@@ -1103,7 +1103,14 @@
   function navigateTo(route, arg) {
     // Don't scroll here — hashchange handler saves scroll, renderRoute
     // either restores the saved position or scrolls to top of new page.
-    if (route === 'home') window.location.hash = '';
+    if (route === 'home') {
+      if (arg === 'posts') {
+        // Caller wants to land at the All Posts section, not wherever
+        // home was last scrolled. Set a flag we read after render.
+        try { sessionStorage.setItem('dcm-scroll-target', 'posts'); } catch(e){}
+      }
+      window.location.hash = '';
+    }
     else if (route === 'post') window.location.hash = 'post=' + arg;
     else if (route === 'module') window.location.hash = 'module=' + encodeURIComponent(arg);
   }
@@ -1138,7 +1145,33 @@
     } else {
       renderHome();
     }
+    // If a navigation requested a specific section target, honour it
+    // and skip the normal scroll restoration.
+    var target = null;
+    try { target = sessionStorage.getItem('dcm-scroll-target'); } catch(e){}
+    if (target === 'posts') {
+      try { sessionStorage.removeItem('dcm-scroll-target'); } catch(e){}
+      scrollToPostsSection_();
+      return;
+    }
     restoreScrollOrTop_();
+  }
+  
+  function scrollToPostsSection_() {
+    function postsY() {
+      var el = document.getElementById('posts-section');
+      if (!el) return null;
+      var r = el.getBoundingClientRect();
+      return r.top + window.scrollY - 20;
+    }
+    requestAnimationFrame(function() {
+      var y1 = postsY();
+      if (y1 != null) window.scrollTo({ top: y1, behavior: 'smooth' });
+      setTimeout(function() {
+        var y2 = postsY();
+        if (y2 != null) window.scrollTo({ top: y2, behavior: 'auto' });
+      }, 800);
+    });
   }
 
   function restoreScrollOrTop_() {
@@ -1292,25 +1325,7 @@
   function setFilter(filter) {
     currentFilter = filter;
     renderHome();
-    // Scroll to All Posts. The DOM was just rebuilt and images load
-    // async on mobile, so the section's Y position shifts as images
-    // load. Smooth-scroll first (good UX), then snap-correct after
-    // a delay to ensure we end up exactly at the section.
-    function postsY() {
-      const el = document.getElementById('posts-section');
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      return r.top + window.scrollY - 20;  // 20px breathing room above
-    }
-    requestAnimationFrame(function() {
-      const y1 = postsY();
-      if (y1 != null) window.scrollTo({ top: y1, behavior: 'smooth' });
-      // 800ms later, recompute and snap to correct any image-load shifts
-      setTimeout(function() {
-        const y2 = postsY();
-        if (y2 != null) window.scrollTo({ top: y2, behavior: 'auto' });
-      }, 800);
-    });
+    scrollToPostsSection_();
   }
 
   // =================================================================
@@ -1518,7 +1533,7 @@
     document.getElementById('app').innerHTML = [
       '<div class="article-shell">',
       '  <div class="article-nav">',
-      '    <span class="back" onclick="navigateTo(\'home\')">← BACK TO ALL POSTS</span>',
+      '    <span class="back" onclick="navigateTo(\'home\',\'posts\')">← BACK TO ALL POSTS</span>',
       '    <div>' + escapeHtml(post.meta_line || (post.module + ' · ' + dateFull.toUpperCase())) + '</div>',
       '  </div>',
       post.cover
@@ -1537,7 +1552,7 @@
       '  </div>',
       galleryHtml,
       '  <div class="article-foot">',
-      '    <a onclick="navigateTo(\'home\')">← ALL POSTS</a>',
+      '    <a onclick="navigateTo(\'home\',\'posts\')">← ALL POSTS</a>',
       '  </div>',
       '  <footer>',
       '    ' + escapeHtml(SITE.config.footer_text) + ' <span class="sep">|</span> <span class="contact">' + escapeHtml(SITE.config.footer_contact) + '</span>',
