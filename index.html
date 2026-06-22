@@ -12,13 +12,6 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="DCM·BSURAK — Department of Computing & Media">
 <meta name="twitter:description" content="Bath Spa University · RAK Campus. Student showcase of code, design, photography & storytelling.">
-<!-- Favicon and social-preview image. The JS below updates these dynamically from _CONFIG.site_image_url,
-     but social-media crawlers (WhatsApp, Facebook, LinkedIn) do NOT execute JavaScript — they read this
-     static HTML only. For social previews to use a custom image, paste the same URL into the og:image
-     content attribute below as well. See README for the one-time setup. -->
-<link rel="icon" type="image/png" id="favicon-link" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23FF2E9A'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='14' fill='white' text-anchor='middle' font-weight='bold'%3ED%3C/text%3E%3C/svg%3E">
-<meta property="og:image" content="" id="og-image-meta">
-<meta name="twitter:image" content="" id="twitter-image-meta">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -944,7 +937,8 @@
     transition: background 0.15s;
   }
   .lb-nav:hover { background: rgba(255,255,255,0.18); }
-  .lightbox.carousel-mode .lb-nav { display: flex; }
+  .lightbox.carousel-mode .lb-nav,
+  .lightbox.video-carousel-mode .lb-nav { display: flex; }
   .lb-prev { left: 24px; }
   .lb-next { right: 24px; }
   @media (max-width: 700px) {
@@ -1102,19 +1096,6 @@
   function updateBrand(cfg) {
     const el = document.querySelector('.brand');
     if (el && cfg) el.innerHTML = brandHtml(cfg);
-    // If a site_image_url is set in the sheet, update the favicon + social
-    // preview meta tags at runtime. Note: WhatsApp/Facebook/LinkedIn crawlers
-    // do NOT execute JS, so these updates only affect the live page (favicon
-    // in browser tabs). For social previews to use the custom image, the
-    // og:image content attribute must also be set statically in the HTML.
-    if (cfg && cfg.site_image_url) {
-      const fav = document.getElementById('favicon-link');
-      if (fav) fav.href = cfg.site_image_url;
-      const ogImg = document.getElementById('og-image-meta');
-      if (ogImg) ogImg.setAttribute('content', cfg.site_image_url);
-      const twImg = document.getElementById('twitter-image-meta');
-      if (twImg) twImg.setAttribute('content', cfg.site_image_url);
-    }
   }
 
   function brandHtml(cfg) {
@@ -1244,6 +1225,7 @@
   // HOME PAGE
   // =================================================================
   function renderHome() {
+    videoCollections = {};
     if (LOAD_ERROR) {
       document.getElementById('app').innerHTML = '<div style="padding:120px 60px;text-align:center;font-family:var(--font-display);color:var(--ink-soft)"><div style="font-size:42px;font-weight:900;color:var(--ink);margin-bottom:18px;letter-spacing:-0.02em">Site data could not load.</div><div style="font-size:14px;font-family:var(--font-mono);color:var(--ink-mute);letter-spacing:0.1em">' + escapeHtml(LOAD_ERROR) + '</div>' + (LOAD_ERROR_WHERE ? '<div style="margin-top:14px;font-size:11px;font-family:var(--font-mono);color:var(--ink-faint);letter-spacing:0.1em;max-width:900px;margin-left:auto;margin-right:auto;word-break:break-all">' + escapeHtml(LOAD_ERROR_WHERE) + '</div>' : '') + '<div style="margin-top:30px;font-size:11px;font-family:var(--font-mono);color:var(--ink-mute);letter-spacing:0.16em;text-transform:uppercase">Check the Apps Script URL in index.html and the sheet permissions.</div></div>';
       return;
@@ -1373,12 +1355,16 @@
         '</div>'
       ].join('');
     }
+    // Register this module's videos as a carousel collection
+    const showcaseVideos = [module.featured].concat(module.minis || []).filter(function(x){ return x; });
+    const collKey = 'home-' + module.tab_name;
+    videoCollections[collKey] = showcaseVideos;
     const featLink = module.featured.link
       ? '<a class="link-btn" href="' + escapeAttr(module.featured.link) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Visit project">' + linkSvg + '</a>'
       : '';
     return [
       '<div class="showcase" style="--c:' + module.color + '">',
-      '  <div class="featured" onclick="openLightbox(\'' + escapeJs((module.featured && module.featured.youtube) || '') + '\',\'' + escapeJs((module.featured && module.featured.student) || '') + ' · ' + escapeJs(module.display_name) + '\')">',
+      '  <div class="featured" onclick="openVideoCarousel(\'' + escapeJs(collKey) + '\',0,\'' + escapeJs(module.display_name) + '\')">',
       '    ' + featLink,
       '    <img src="' + module.featured.thumb + '" alt="" loading="lazy">',
       '    <div class="play"></div>',
@@ -1392,11 +1378,11 @@
       '    <div class="tutor">' + escapeHtml(module.tutor) + '</div>',
       '  </div>',
       '  <div class="strip">',
-      module.minis.map(function(m) {
+      module.minis.map(function(m, miniIdx) {
         var miniLink = m.link
           ? '<a class="link-btn mini-link" href="' + escapeAttr(m.link) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Visit project">' + linkSvg + '</a>'
           : '';
-        return '<div class="mini-card" onclick="openLightbox(\'' + escapeJs(m.youtube || '') + '\',\'' + escapeJs(m.student) + ' · ' + escapeJs(module.display_name) + '\')"><div class="mini">' + miniLink + '<img src="' + m.thumb + '" alt=""></div><div class="mini-name">' + escapeHtml(m.student) + '</div></div>';
+        return '<div class="mini-card" onclick="openVideoCarousel(\'' + escapeJs(collKey) + '\',' + (miniIdx + 1) + ',\'' + escapeJs(module.display_name) + '\')"><div class="mini">' + miniLink + '<img src="' + m.thumb + '" alt=""></div><div class="mini-name">' + escapeHtml(m.student) + '</div></div>';
       }).join(''),
       Array(Math.max(0, 3 - module.minis.length)).fill('<div class="mini-card empty"><div class="mini"></div><div class="mini-name">·</div></div>').join(''),
       '  </div>',
@@ -1462,6 +1448,7 @@
   const linkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg>';
 
   function renderModule(mod) {
+    videoCollections = {};
     if (LOAD_ERROR) {
       document.getElementById('app').innerHTML = '<div style="padding:120px 60px;text-align:center;font-family:var(--font-display);color:var(--ink-soft)"><div style="font-size:42px;font-weight:900;color:var(--ink);margin-bottom:18px;letter-spacing:-0.02em">Site data could not load.</div><div style="font-size:14px;font-family:var(--font-mono);color:var(--ink-mute);letter-spacing:0.1em">' + escapeHtml(LOAD_ERROR) + '</div>' + (LOAD_ERROR_WHERE ? '<div style="margin-top:14px;font-size:11px;font-family:var(--font-mono);color:var(--ink-faint);letter-spacing:0.1em;max-width:900px;margin-left:auto;margin-right:auto;word-break:break-all">' + escapeHtml(LOAD_ERROR_WHERE) + '</div>' : '') + '<div style="margin-top:30px;font-size:11px;font-family:var(--font-mono);color:var(--ink-mute);letter-spacing:0.16em;text-transform:uppercase">Check the Apps Script URL in index.html and the sheet permissions.</div></div>';
       return;
@@ -1487,6 +1474,9 @@
     function semesterSectionHtml(sem, idx) {
       const semTutor = sem.tutor || mod.tutor || '';
       const semVideos = sem.videos || [];
+      // Register this semester's videos as a carousel collection
+      const semCollKey = 'sem-' + mod.tab_name + '-' + idx;
+      videoCollections[semCollKey] = semVideos;
       const heading = 'Best of <span class="accent">' + escapeHtml(sem.name) + '</span> with ' + escapeHtml(semTutor);
       return [
         '  <section class="semester-section">',
@@ -1501,7 +1491,7 @@
             var vLink = v.link
               ? '<a class="link-btn" href="' + escapeAttr(v.link) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Visit project">' + linkSvg + '</a>'
               : '';
-            return '<div class="masonry-card" style="--c:' + mod.color + '" onclick="openLightbox(\'' + escapeJs(v.youtube || '') + '\',\'' + escapeJs(v.student) + ' · ' + escapeJs(mod.display_name) + '\')">'
+            return '<div class="masonry-card" style="--c:' + mod.color + '" onclick="openVideoCarousel(\'' + escapeJs(semCollKey) + '\',' + i + ',\'' + escapeJs(mod.display_name) + '\')">'
               + '<div class="v-thumb">'
               + vLink
               + '<img src="' + (v.thumb || 'https://picsum.photos/seed/' + i + '/800/450') + '" alt="" loading="lazy">'
@@ -1622,6 +1612,13 @@
   // Carousel state — used when viewing an article gallery's images
   let carouselImages = [];
   let carouselIndex = 0;
+  // Video carousel — collections registered per render so clicking any
+  // video opens a lightbox with prev/next navigation through the rest
+  // of that section's videos.
+  let videoCollections = {};
+  let videoCarouselList = null;
+  let videoCarouselIndex = 0;
+  let videoCarouselTitle = '';
 
   function openLightbox(videoUrl, caption) {
     document.getElementById('lightbox').classList.remove('carousel-mode');
@@ -1651,6 +1648,49 @@
     document.getElementById('lightbox').classList.add('open');
   }
 
+  function openVideoCarousel(collKey, startIndex, title) {
+    const list = videoCollections[collKey];
+    if (!list || !list.length) {
+      // No collection registered — fall back to nothing (silently bail)
+      return;
+    }
+    videoCarouselList = list;
+    videoCarouselIndex = startIndex || 0;
+    videoCarouselTitle = title || '';
+    const lb = document.getElementById('lightbox');
+    lb.classList.remove('carousel-mode');
+    lb.classList.add('video-carousel-mode');
+    lb.classList.add('open');
+    renderCarouselVideo();
+  }
+  
+  function renderCarouselVideo() {
+    const v = videoCarouselList[videoCarouselIndex];
+    if (!v) return;
+    const host = document.getElementById('lb-host');
+    const url = String(v.youtube || '').trim();
+    if (!url) {
+      host.innerHTML = '<div style="color:#fff;padding:40px;font-family:var(--font-display);font-size:18px;opacity:0.7">No video URL available</div>';
+    } else {
+      const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|watch\?v=|.*[?&]v=))([\w-]{11})/);
+      const id = m ? m[1] : (url.length === 11 ? url : '');
+      const iframeStyle = "position:absolute;top:0;left:0;width:100%;height:100%;border:0";
+      const isMobile = window.matchMedia('(max-width: 900px)').matches
+                    || (('ontouchstart' in window) && navigator.maxTouchPoints > 0)
+                    || /iPhone|iPad|Android|Mobi/i.test(navigator.userAgent);
+      const muteParam = isMobile ? '&mute=1&playsinline=1' : '';
+      if (id) {
+        host.innerHTML = '<iframe src="https://www.youtube.com/embed/' + id
+          + '?autoplay=1' + muteParam + '&rel=0" allow="autoplay; fullscreen; encrypted-media" allowfullscreen frameborder="0" style="' + iframeStyle + '"></iframe>';
+      } else {
+        host.innerHTML = '<iframe src="' + url + '" allow="autoplay; fullscreen" allowfullscreen frameborder="0" style="' + iframeStyle + ';background:#000"></iframe>';
+      }
+    }
+    document.getElementById('lb-caption').textContent =
+      (v.student || '') + ' · ' + videoCarouselTitle +
+      ' (' + (videoCarouselIndex + 1) + ' / ' + videoCarouselList.length + ')';
+  }
+  
   function openCarousel(images, startIndex) {
     carouselImages = images;
     carouselIndex = startIndex || 0;
@@ -1669,6 +1709,13 @@
 
   function carouselPrev(e) {
     if (e) e.stopPropagation();
+    const lb = document.getElementById('lightbox');
+    if (lb.classList.contains('video-carousel-mode')) {
+      if (!videoCarouselList || !videoCarouselList.length) return;
+      videoCarouselIndex = (videoCarouselIndex - 1 + videoCarouselList.length) % videoCarouselList.length;
+      renderCarouselVideo();
+      return;
+    }
     if (!carouselImages.length) return;
     carouselIndex = (carouselIndex - 1 + carouselImages.length) % carouselImages.length;
     renderCarouselImage();
@@ -1676,6 +1723,13 @@
 
   function carouselNext(e) {
     if (e) e.stopPropagation();
+    const lb = document.getElementById('lightbox');
+    if (lb.classList.contains('video-carousel-mode')) {
+      if (!videoCarouselList || !videoCarouselList.length) return;
+      videoCarouselIndex = (videoCarouselIndex + 1) % videoCarouselList.length;
+      renderCarouselVideo();
+      return;
+    }
     if (!carouselImages.length) return;
     carouselIndex = (carouselIndex + 1) % carouselImages.length;
     renderCarouselImage();
@@ -1686,16 +1740,18 @@
     const lb = document.getElementById('lightbox');
     lb.classList.remove('open');
     lb.classList.remove('carousel-mode');
+    lb.classList.remove('video-carousel-mode');
     document.getElementById('lb-host').innerHTML = '';
     carouselImages = []; carouselIndex = 0;
+    videoCarouselList = null; videoCarouselIndex = 0;
   }
 
   document.addEventListener('keydown', e => {
     const lb = document.getElementById('lightbox');
     if (!lb.classList.contains('open')) return;
     if (e.key === 'Escape') closeLightbox();
-    else if (e.key === 'ArrowLeft' && lb.classList.contains('carousel-mode')) carouselPrev();
-    else if (e.key === 'ArrowRight' && lb.classList.contains('carousel-mode')) carouselNext();
+    else if (e.key === 'ArrowLeft' && (lb.classList.contains('carousel-mode') || lb.classList.contains('video-carousel-mode'))) carouselPrev();
+    else if (e.key === 'ArrowRight' && (lb.classList.contains('carousel-mode') || lb.classList.contains('video-carousel-mode'))) carouselNext();
   });
 
   // =================================================================
