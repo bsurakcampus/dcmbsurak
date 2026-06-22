@@ -306,6 +306,12 @@
   }
   .link-btn:hover { background: var(--c, var(--accent)); color: white; text-decoration: none; }
   .link-btn svg { width: 13px; height: 13px; }
+  /* Smaller link icon on mini thumbs */
+  .link-btn.mini-link {
+    top: 6px; right: 6px;
+    width: 22px; height: 22px;
+  }
+  .link-btn.mini-link svg { width: 10px; height: 10px; }
   .showcase .mod {
     padding: 18px 20px 14px;
     border-bottom: 1px solid var(--line);
@@ -1270,7 +1276,6 @@
         '</div>'
       ].join('');
     }
-    const linkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg>';
     const featLink = module.featured.link
       ? '<a class="link-btn" href="' + escapeAttr(module.featured.link) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Visit project">' + linkSvg + '</a>'
       : '';
@@ -1290,7 +1295,12 @@
       '    <div class="tutor">' + escapeHtml(module.tutor) + '</div>',
       '  </div>',
       '  <div class="strip">',
-      module.minis.map(m => '<div class="mini-card" onclick="openLightbox(\'' + escapeJs(m.youtube || '') + '\',\'' + escapeJs(m.student) + ' · ' + escapeJs(module.display_name) + '\')"><div class="mini"><img src="' + m.thumb + '" alt=""></div><div class="mini-name">' + escapeHtml(m.student) + '</div></div>').join(''),
+      module.minis.map(function(m) {
+        var miniLink = m.link
+          ? '<a class="link-btn mini-link" href="' + escapeAttr(m.link) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Visit project">' + linkSvg + '</a>'
+          : '';
+        return '<div class="mini-card" onclick="openLightbox(\'' + escapeJs(m.youtube || '') + '\',\'' + escapeJs(m.student) + ' · ' + escapeJs(module.display_name) + '\')"><div class="mini">' + miniLink + '<img src="' + m.thumb + '" alt=""></div><div class="mini-name">' + escapeHtml(m.student) + '</div></div>';
+      }).join(''),
       Array(Math.max(0, 3 - module.minis.length)).fill('<div class="mini-card empty"><div class="mini"></div><div class="mini-name">·</div></div>').join(''),
       '  </div>',
       '  <div class="view-all" onclick="navigateTo(\'module\',\'' + escapeJs(module.tab_name) + '\')"><span>View all ' + (module.minis.length + 1) + ' projects</span><span>→</span></div>',
@@ -1351,6 +1361,9 @@
   // =================================================================
   // MODULE PAGE — semester + brick gallery for one module
   // =================================================================
+  // Shared globe SVG used by link buttons across the site
+  const linkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg>';
+
   function renderModule(mod) {
     if (LOAD_ERROR) {
       document.getElementById('app').innerHTML = '<div style="padding:120px 60px;text-align:center;font-family:var(--font-display);color:var(--ink-soft)"><div style="font-size:42px;font-weight:900;color:var(--ink);margin-bottom:18px;letter-spacing:-0.02em">Site data could not load.</div><div style="font-size:14px;font-family:var(--font-mono);color:var(--ink-mute);letter-spacing:0.1em">' + escapeHtml(LOAD_ERROR) + '</div>' + (LOAD_ERROR_WHERE ? '<div style="margin-top:14px;font-size:11px;font-family:var(--font-mono);color:var(--ink-faint);letter-spacing:0.1em;max-width:900px;margin-left:auto;margin-right:auto;word-break:break-all">' + escapeHtml(LOAD_ERROR_WHERE) + '</div>' : '') + '<div style="margin-top:30px;font-size:11px;font-family:var(--font-mono);color:var(--ink-mute);letter-spacing:0.16em;text-transform:uppercase">Check the Apps Script URL in index.html and the sheet permissions.</div></div>';
@@ -1387,8 +1400,12 @@
       (videos.length === 0
         ? '<div style="padding:60px 0;color:var(--ink-mute);font-family:var(--font-mono);font-size:11px;letter-spacing:0.22em;text-transform:uppercase">No projects in this module tab yet.</div>'
         : videos.map((v, i) => {
+        var vLink = v.link
+          ? '<a class="link-btn" href="' + escapeAttr(v.link) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Visit project">' + linkSvg + '</a>'
+          : '';
         return '<div class="masonry-card" style="--c:' + mod.color + '" onclick="openLightbox(\'' + escapeJs(v.youtube || '') + '\',\'' + escapeJs(v.student) + ' · ' + escapeJs(mod.display_name) + '\')">'
           + '<div class="v-thumb">'
+          + vLink
           + '<img src="' + (v.thumb || 'https://picsum.photos/seed/' + i + '/800/450') + '" alt="" loading="lazy">'
           + '<div class="v-play"></div>'
           + '</div>'
