@@ -835,9 +835,9 @@
     font-family: var(--font-display); font-weight: 600;
     font-size: 13px; color: var(--ink);
     letter-spacing: -0.005em; line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
   }
   /* Responsive: 4 cols on desktop, 3 cols on laptop/tablet landscape, 2 cols on tablet portrait/phone */
   @media (max-width: 1300px) {
@@ -957,6 +957,8 @@
   @media (max-width: 700px) {
     header.topbar { padding: 12px 22px; }
     .why-section .body { grid-template-columns: 1fr; gap: 24px; }
+    /* 75% of the desktop minimum (40px → 30px) so the heading sits comfortably on phone */
+    .why-section h2 { font-size: 30px; margin: 0 0 36px; }
     .hero { padding: 60px 22px 50px; }
     .hero .marquee { margin: 0 -22px; }
     .why-section { padding: 60px 22px; }
@@ -1123,8 +1125,23 @@
   function restoreScrollOrTop_() {
     const saved = scrollState[window.location.hash || ''];
     if (typeof saved === 'number') {
-      // Wait one frame so the DOM is laid out, then jump to saved position
-      requestAnimationFrame(function () { window.scrollTo(0, saved); });
+      // Poll for the page to grow tall enough, up to ~700ms.
+      // Images (Drive thumbs, YouTube covers) load async so the doc
+      // height changes after first paint — without polling we'd land
+      // short of the saved position and clip to the bottom.
+      var target = saved;
+      var attempts = 0;
+      function tryRestore() {
+        var maxScroll = Math.max(0,
+          document.documentElement.scrollHeight - window.innerHeight);
+        if (maxScroll >= target || attempts > 14) {
+          window.scrollTo(0, target);
+          return;
+        }
+        attempts++;
+        setTimeout(tryRestore, 50);
+      }
+      tryRestore();
     } else {
       window.scrollTo(0, 0);
     }
@@ -1540,7 +1557,7 @@
       var iframeStyle = "position:absolute;top:0;left:0;width:100%;height:100%;border:0";
       if (id) {
         host.innerHTML = '<iframe src="https://www.youtube.com/embed/' + id
-          + '?autoplay=1&rel=0" allow="autoplay; fullscreen; encrypted-media" allowfullscreen frameborder="0" style="' + iframeStyle + '"></iframe>';
+          + '?autoplay=1&mute=1&playsinline=1&rel=0" allow="autoplay; fullscreen; encrypted-media" allowfullscreen frameborder="0" style="' + iframeStyle + '"></iframe>';
       } else {
         host.innerHTML = '<iframe src="' + url + '" allow="autoplay; fullscreen" allowfullscreen frameborder="0" style="' + iframeStyle + ';background:#000"></iframe>';
       }
