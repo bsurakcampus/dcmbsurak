@@ -791,17 +791,15 @@
      top-to-bottom in each column. Matches the article gallery so the
      layout language is consistent across the site. */
   .masonry {
-    column-count: 4;
-    column-gap: 18px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 22px;
   }
   .masonry-card {
     position: relative;
-    display: block;
     background: transparent;
     overflow: hidden;
     cursor: pointer;
-    margin-bottom: 22px;
-    break-inside: avoid;
     width: 100%;
   }
   .masonry-card .v-thumb {
@@ -841,13 +839,13 @@
   }
   /* Responsive: 4 cols on desktop, 3 cols on laptop/tablet landscape, 2 cols on tablet portrait/phone */
   @media (max-width: 1300px) {
-    .masonry { column-count: 3; }
+    .masonry { grid-template-columns: repeat(3, 1fr); }
   }
   @media (max-width: 900px) {
-    .masonry { column-count: 2; column-gap: 14px; }
+    .masonry { grid-template-columns: repeat(2, 1fr); gap: 16px; }
   }
   @media (max-width: 700px) {
-    .masonry { column-count: 2; column-gap: 12px; }
+    .masonry { grid-template-columns: repeat(2, 1fr); gap: 12px; }
     .module-nav-row { padding: 18px 22px; }
     .module-hero { padding: 40px 22px 30px; }
     .semester-section { padding: 40px 22px; }
@@ -1044,7 +1042,28 @@
   if ('scrollRestoration' in history) {
     history.scrollRestoration = 'manual';
   }
-  const scrollState = {};
+  // Scroll memory persists in sessionStorage so it survives if the
+  // page rebuilds DOM on hashchange. Keyed by hash.
+  function scrollKey_() { return 'dcm-scroll-' + (window.location.hash || ''); }
+  function saveScroll_() {
+    try { sessionStorage.setItem(scrollKey_(), String(window.scrollY)); } catch (e) {}
+  }
+  function loadScroll_(hash) {
+    try {
+      const v = sessionStorage.getItem('dcm-scroll-' + (hash || ''));
+      return v == null ? null : Number(v);
+    } catch (e) { return null; }
+  }
+  // Debounced scroll saver — fires on every scroll, persists position
+  // for the current route. This means we don't depend on hashchange
+  // firing in the right order on mobile (which is flaky in some browsers).
+  let scrollSaveTimer = null;
+  window.addEventListener('scroll', function() {
+    if (scrollSaveTimer) clearTimeout(scrollSaveTimer);
+    scrollSaveTimer = setTimeout(saveScroll_, 150);
+  }, { passive: true });
+  // Also save right before page hides (in case user closes/switches tab)
+  window.addEventListener('pagehide', saveScroll_);
   let previousHash = window.location.hash;
 
   // ============================================================
@@ -1123,33 +1142,38 @@
   }
 
   function restoreScrollOrTop_() {
-    const saved = scrollState[window.location.hash || ''];
-    if (typeof saved === 'number') {
-      // Poll for the page to grow tall enough, up to ~700ms.
-      // Images (Drive thumbs, YouTube covers) load async so the doc
-      // height changes after first paint — without polling we'd land
-      // short of the saved position and clip to the bottom.
-      var target = saved;
-      var attempts = 0;
-      function tryRestore() {
-        var maxScroll = Math.max(0,
-          document.documentElement.scrollHeight - window.innerHeight);
-        if (maxScroll >= target || attempts > 14) {
-          window.scrollTo(0, target);
-          return;
-        }
-        attempts++;
-        setTimeout(tryRestore, 50);
-      }
-      tryRestore();
-    } else {
+    const saved = loadScroll_(window.location.hash || '');
+    if (saved == null || saved < 1) {
       window.scrollTo(0, 0);
+      return;
     }
+    // Poll up to 3 seconds for the page to grow tall enough. Images
+    // (Drive thumbs, YouTube covers) load async; on a slow phone
+    // connection they can take a couple of seconds.
+    const target = saved;
+    const startTime = Date.now();
+    function attempt() {
+      const maxScroll = Math.max(0,
+        document.documentElement.scrollHeight - window.innerHeight);
+      if (maxScroll >= target) {
+        window.scrollTo(0, target);
+        return;
+      }
+      if (Date.now() - startTime > 3000) {
+        // Give up after 3s; scroll to whatever we have
+        window.scrollTo(0, target);
+        return;
+      }
+      setTimeout(attempt, 60);
+    }
+    attempt();
   }
 
   window.addEventListener('hashchange', function () {
-    // Save the scroll position of the page we just left
-    scrollState[previousHash || ''] = window.scrollY;
+    // Save the scroll position of the page we just left, then navigate.
+    // We use sessionStorage directly with the previous hash key so the
+    // save survives this teardown.
+    try { sessionStorage.setItem('dcm-scroll-' + (previousHash || ''), String(window.scrollY)); } catch (e) {}
     previousHash = window.location.hash;
     renderRoute();
   });
@@ -1555,9 +1579,15 @@
       var m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|watch\?v=|.*[?&]v=))([\w-]{11})/);
       var id = m ? m[1] : (url.length === 11 ? url : '');
       var iframeStyle = "position:absolute;top:0;left:0;width:100%;height:100%;border:0";
+      // Mobile browsers (esp. iOS Safari) block autoplay with sound.
+      // On desktop we keep sound on so playback is normal.
+      var isMobile = window.matchMedia('(max-width: 900px)').matches
+                    || (('ontouchstart' in window) && navigator.maxTouchPoints > 0)
+                    || /iPhone|iPad|Android|Mobi/i.test(navigator.userAgent);
+      var muteParam = isMobile ? '&mute=1&playsinline=1' : '';
       if (id) {
         host.innerHTML = '<iframe src="https://www.youtube.com/embed/' + id
-          + '?autoplay=1&mute=1&playsinline=1&rel=0" allow="autoplay; fullscreen; encrypted-media" allowfullscreen frameborder="0" style="' + iframeStyle + '"></iframe>';
+          + '?autoplay=1' + muteParam + '&rel=0" allow="autoplay; fullscreen; encrypted-media" allowfullscreen frameborder="0" style="' + iframeStyle + '"></iframe>';
       } else {
         host.innerHTML = '<iframe src="' + url + '" allow="autoplay; fullscreen" allowfullscreen frameborder="0" style="' + iframeStyle + ';background:#000"></iframe>';
       }
