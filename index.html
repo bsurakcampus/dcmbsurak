@@ -1202,7 +1202,7 @@
   // ============================================================
   // SITE data loader — paste your Apps Script /exec URL below.
   // ============================================================
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKV1Dm2EFzZrfdHPh-Fn3DsgrcLfrJKAXKq1LzyOb6AtpavbXvp1KgtT6vR969QBdO/exec';
+  const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
   let SITE = null;
   let LOAD_ERROR = null;
   let LOAD_ERROR_WHERE = null;
@@ -1318,6 +1318,41 @@
     return { type: 'home' };
   }
 
+  async function fetchModuleData(tabName) {
+    if (moduleCache[tabName]) return moduleCache[tabName];
+    const sep = APPS_SCRIPT_URL.indexOf('?') === -1 ? '?' : '&';
+    const url = APPS_SCRIPT_URL + sep + 'module=' + encodeURIComponent(tabName);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data && data.error) throw new Error(data.error);
+    if (data && data.module) {
+      moduleCache[tabName] = data.module;
+      return data.module;
+    }
+    return null;
+  }
+
+  function renderModuleSkeleton_(hint, tabName) {
+    if (SITE && SITE.config) updateBrand(SITE.config);
+    const name = (hint && hint.display_name) || tabName;
+    const program = (hint && hint.program) || '';
+    document.getElementById('app').innerHTML = [
+      '<div class="module-page">',
+      '  <div class="module-nav-row">',
+      '    <span class="back" onclick="navigateTo(\'home\')">← BACK TO HOME</span>',
+      '  </div>',
+      '  <div class="module-hero">',
+      (program ? '    <div class="meta-line">' + escapeHtml('Module · ' + program) + '</div>' : ''),
+      '    <h1>' + escapeHtml(name) + '</h1>',
+      '  </div>',
+      '  <section class="semester-section">',
+      '    <div style="padding:80px 0;text-align:center;color:var(--ink-mute);font-family:var(--font-mono);font-size:11px;letter-spacing:0.24em;text-transform:uppercase">Loading projects…</div>',
+      '  </section>',
+      '</div>'
+    ].join('');
+  }
+
   function renderRoute() {
     if (!SITE && !LOAD_ERROR) { renderHome(); return; }
     if (LOAD_ERROR) { renderHome(); return; }
@@ -1327,17 +1362,42 @@
       if (post) renderArticle(post);
       else renderHome();
     } else if (r.type === 'module') {
-      // Try moduleFull first (full semester data), then modules (home data),
-      // then allModules (just the name + tab — minimal empty page so the
-      // click lands somewhere meaningful even if data is incomplete).
-      const fullMod = SITE.moduleFull && SITE.moduleFull[r.name];
+      // Priority: in-memory moduleCache → SITE.moduleFull (only if backend still sends it) → lazy fetch
+      const fullMod = moduleCache[r.name] || (SITE.moduleFull && SITE.moduleFull[r.name]);
       const homeMod = SITE.modules    && SITE.modules.find(m => m.tab_name === r.name);
       const allMod  = SITE.allModules && SITE.allModules.find(m => m.tab_name === r.name);
-      const mod = fullMod || homeMod || (allMod
-        ? { tab_name: allMod.tab_name, display_name: allMod.display_name, tagline: '', color: '#FF2E9A', tutor: '', semesters: [] }
-        : null);
-      if (mod) renderModule(mod);
-      else renderHome();
+      if (fullMod) {
+        renderModule(fullMod);
+      } else if (typeof APPS_SCRIPT_URL !== 'undefined' && APPS_SCRIPT_URL && APPS_SCRIPT_URL.indexOf('PASTE') !== 0) {
+        // Show skeleton, fetch full data lazily
+        renderModuleSkeleton_(allMod || homeMod, r.name);
+        fetchModuleData(r.name).then(function (mod) {
+          // Only apply if user is still on this module page
+          const now = currentRoute();
+          if (now.type !== 'module' || now.name !== r.name) return;
+          if (mod) {
+            moduleCache[r.name] = mod;
+            renderModule(mod);
+            restoreScrollOrTop_();
+          } else if (homeMod) {
+            renderModule(homeMod);
+            restoreScrollOrTop_();
+          }
+        }).catch(function (err) {
+          console.error('Module fetch failed:', err);
+          const now = currentRoute();
+          if (now.type === 'module' && now.name === r.name && homeMod) {
+            renderModule(homeMod);
+            restoreScrollOrTop_();
+          }
+        });
+      } else if (homeMod) {
+        renderModule(homeMod);
+      } else if (allMod) {
+        renderModule({ tab_name: allMod.tab_name, display_name: allMod.display_name, program: allMod.program || '', tagline: '', color: '#FF2E9A', tutor: '', semesters: [] });
+      } else {
+        renderHome();
+      }
     } else {
       renderHome();
     }
@@ -1875,6 +1935,11 @@
   // LIGHTBOX (simple placeholder for video/image)
   // =================================================================
   // Carousel state — used when viewing an article gallery's images
+  // Per-module data cache. Home payload no longer includes moduleFull;
+  // instead each module page fetches its own data via /exec?module=Tab.
+  // First fetch caches it in memory for the rest of the session.
+  const moduleCache = {};
+
   let carouselImages = [];
   let carouselIndex = 0;
   // Video carousel — collections registered per render so clicking any
